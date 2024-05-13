@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from typing import List, Tuple, Optional
 
-
+# pass
 class timeSlots(object):
     """The set of discrete time slots of the system"""
     def __init__(
@@ -53,6 +53,7 @@ class timeSlots(object):
     def reset(self) -> None:
         self._now = self._start
 
+# pass
 class location(object):
     """ the location of the node. """
     def __init__(self, x: float, y: float) -> None:
@@ -85,6 +86,7 @@ class location(object):
             (self._y - location.get_y())**2
         )
 
+# pass
 class trajectory(object):
     """ the trajectory of the node. """
     def __init__(self, 
@@ -135,7 +137,95 @@ class trajectory(object):
             print_result += str(location.get_x()) + ", "
             print_result += str(location.get_y()) + ")"
         return print_result
+
+# pass
+class PFMs(object):
+    def __init__(
+        self, 
+        type: int, 
+        model_runtime : float,
+        model_size: float,
+        
+        zero_shot : float,
+        one_shot : float,
+        PFMj_context_win_size : float) -> None:
+        """ initialize the information.
+        Args:
+            type: the type of the information.
+            data_size: the data size of the information.
+        """
+        self._type = type
+        self._model_runtime= model_runtime
+        self._model_size = model_size
+        self._zero_shot = zero_shot
+        self._one_shot = one_shot
+        self._PFMj_context_win_size = PFMj_context_win_size
+
+    def __str__(self) -> str:
+        return f"type: {self._type}\n model_runtime: {self._model_runtime}\n model_size: {self._model_size} \
+        zero_shot: {self._zero_shot}\n one_shot: {self._one_shot}\n PFMj_context_win_size: {self._PFMj_context_win_size}"
+
+    def get_type(self) -> int:
+        return int(self._type)
     
+    def get_model_runtime(self) -> float:
+        return self._model_runtime
+    
+    def get_model_size(self) -> float:
+        return self._model_size
+    
+    def get_zero_shot(self) -> float:
+        return self._zero_shot
+    
+    def get_one_shote(self) -> float:
+        return self._one_shot
+    
+    def get_PFMj_context_win_size(self) -> float:
+        return self._PFMj_context_win_size
+
+# pass
+class service(object):
+    def __init__(
+        self, 
+        type: int, 
+        data_size: float,
+        GPU_cycles : float,
+        PFMs : List[PFMs],
+        update_interval: float) -> None:
+        """ initialize the service.
+        Args:
+            type: the type of the service.
+            data_size: the data size of the service.
+            GPU_cycles: 
+            PFMs:
+        """
+        self._type = type
+        self._data_size = data_size
+        self._GPU_cycles = GPU_cycles
+        self._PFMs = PFMs
+        self._update_interval = update_interval
+
+    def __str__(self) -> str:
+        return f"type: {self._type}\n data_size: {self._data_size}\n 
+        GPU_cycles: {self._GPU_cycle}\n PFMs: {self._PFMs}\n update_interval: {self._update_interval}"
+
+    def get_type(self) -> int:
+        return int(self._type)
+    
+    def get_data_size(self) -> float:
+        return self._data_size
+    
+    def get_GPU_cycles(self) -> float:
+        return self._GPU_cycles
+    
+    def get_PFMs(self) -> List[PFMs]:
+        # 二维数组，对应关系
+        self._PFMs = self._PFMs[type]
+        return self._PFMs
+
+    def get_update_interval(self) -> float:
+        return self._update_interval
+
 
 class vehicle(object):
     """" the vehicle. """
@@ -144,7 +234,12 @@ class vehicle(object):
         vehicle_index: int,
         vehicle_trajectory: trajectory,
 
+        vehicle_location : location,
+        vehicle_service : service,
+
         transmission_power: float,
+
+        # 车辆v产生服务s，服务需要由边缘节点上的模型执行，多个模型都能执行这个服务，两者有个一对多的关系，这个关系代码实现应该在哪个模块中实现
         # seed: int: 这个参数是一个整数类型，表示随机数生成的种子值。
         # seed 参数允许我们在随机数生成器中设置一个初始值，以获得可控制的随机数序列。
         seed: int) -> None:
@@ -165,12 +260,11 @@ class vehicle(object):
         self._transmission_power = transmission_power
         self._seed = seed
 
+        seed._vehicle_location = vehicle_location
+        seed._vehicle_service = vehicle_service
+
         if self._sensed_information_number > self._information_number:
             raise ValueError("The max information number must be less than the information number.")
-        
-        self._information_canbe_sensed = self.information_types_can_be_sensed()
-
-        self._sensing_cost = self.sensing_cost_of_information()
 
     def __str__(self) -> str:
         return f"vehicle_index: {self._vehicle_index}\n vehicle_trajectory: {self._vehicle_trajectory}\n information_number: {self._information_number}\n sensed_information_number: {self._sensed_information_number}\n min_sensing_cost: {self._min_sensing_cost}\n max_sensing_cost: {self._max_sensing_cost}\n transmission_power: {self._transmission_power}\n seed: {self._seed}\n information_canbe_sensed: {self._information_canbe_sensed}\n sensing_cost: {self._sensing_cost}"
@@ -180,61 +274,18 @@ class vehicle(object):
 
     def get_transmission_power(self) -> float:
         return self._transmission_power
-        
-        # sensed_information: Optional[List[int]]：这个参数是一个可选的整数列表，表示被感知到的信息。
-        # Optional 表示这个参数可以是 None 或一个整数列表。如果 None，则表示没有被感知到的信息。
-        # np.ndarray 表示返回一个 NumPy 数组。
-    def get_sensed_information_type(self, sensed_information: Optional[List[int]]) -> np.ndarray:
-        # 全零数组一维数组，其长度为 self._sensed_information_number
-        sensed_information_type = np.zeros((self._sensed_information_number,))
-        for i in range(self._sensed_information_number):
-            if sensed_information[i] == 1:
-                sensed_information_type[i] = self.get_information_canbe_sensed()[i]
-            else:
-                sensed_information_type[i] = -1
-        return sensed_information_type
 
-    def information_types_can_be_sensed(self) -> List[int]:
-        # 设置 NumPy 随机数生成器的种子值为 self._seed
-        np.random.seed(self._seed)
-        return list(np.random.choice(
-            a=self._information_number,
-            size=self._sensed_information_number,
-            replace=False))
-
-    def sensing_cost_of_information(self) -> List[float]:
-        np.random.seed(self._seed)
-        # 用于生成服从均匀分布的随机数。
-        # 其中 low 是均匀分布的下界，high 是均匀分布的上界，size 是生成的随机数的形状。
-        return list(np.random.uniform(
-            low=self._min_sensing_cost,
-            high=self._max_sensing_cost,
-            size=self._sensed_information_number
-        ))
-
-    def get_sensing_cost(self) -> List[float]:
-        return self._sensing_cost
+    def get_vehicle_location(self) -> location:
+        return self._vehicle_location
     
-    def get_sensing_cost_by_type(self, type: int) -> float:
-        for _ in range(self._sensed_information_number):
-            if self._information_canbe_sensed[_] == type:
-                return self._sensing_cost[_]
-        raise ValueError("The type is not in the sensing cost list. type: " + str(type))
+    def get_vehicle_service(self) -> service:
+        return self._vehicle_service
     
     def get_vehicle_location(self, nowTimeSlot: int) -> location:
         return self._vehicle_trajectory.get_location(nowTimeSlot)
 
     def get_distance_between_edge(self, nowTimeSlot: int, edge_location: location) -> float:
         return self._vehicle_trajectory.get_location(nowTimeSlot).get_distance(edge_location)
-
-    def get_sensed_information_number(self) -> int:
-        return self._sensed_information_number
-    
-    def get_information_canbe_sensed(self) -> List[int]:
-        return self._information_canbe_sensed
-
-    def get_information_type_canbe_sensed(self, index: int) -> int:
-        return self._information_canbe_sensed[index]
     
     def get_vehicle_trajectory(self) -> trajectory:
         return self._vehicle_trajectory
@@ -244,12 +295,11 @@ class vehicleList(object):
     def __init__(
         self, 
         number: int, 
+        
         time_slots: timeSlots,
         trajectories_file_name: str,
-        information_number: int,
-        sensed_information_number: int,
-        min_sensing_cost: float,
-        max_sensing_cost: float,
+
+
         transmission_power: float,
         # 生成多个随机数序列，您可以为每个序列指定一个种子值。
         # seeds: List[int] 表示一个整数类型的列表，其中包含了多个种子值。
@@ -267,10 +317,7 @@ class vehicleList(object):
         """
         self._number = number
         self._trajectories_file_name = trajectories_file_name
-        self._information_number = information_number
-        self._sensed_information_number = sensed_information_number
-        self._min_sensing_cost = min_sensing_cost
-        self._max_sensing_cost = max_sensing_cost
+
         self._transmission_power = transmission_power
         self._seeds = seeds
 
@@ -282,10 +329,8 @@ class vehicleList(object):
                 vehicle(
                     vehicle_index=i,
                     vehicle_trajectory=self._vehicle_trajectories[i],
-                    information_number=self._information_number,
-                    sensed_information_number=self._sensed_information_number,
-                    min_sensing_cost=self._min_sensing_cost,
-                    max_sensing_cost=self._max_sensing_cost,
+
+
                     transmission_power=self._transmission_power,
                     seed=self._seeds[i]
                 )
@@ -365,7 +410,81 @@ class vehicleList(object):
 
         return vehicle_trajectories
 
+class vehicleAction(object):
+    """ the action of the vehicle. """
+    def __init__(
+        self, 
+        vehicle_index: int,
+        now_time: int,
+        sensed_information: Optional[List[int]] = None,
+        sensing_frequencies: Optional[List[float]] = None,
+        uploading_priorities: Optional[List[float]] = None,
+        transmission_power: Optional[float] = None, 
+        action_time: Optional[int] = None) -> None:
+        """ initialize the vehicle action.
+        Args:
+            vehicle_index: the index of vehicle. e.g. 0, 1, 2, ...
+            now_time: the current time.
+            vehicle_list: the vehicle list.
+            sensed_information: the sensed information.
+                e.g., 0 or 1, indicates whether the information is sensed or not.
+                and the type of information is rocorded in vehicle.information_canbe_sensed .
+            sensing_frequencies: the sensing frequencies.
+            uploading_priorities: the uploading priorities.
+            transmission_power: the transmission power.
+            action_time: the time of the action.
+        """
+        self._vehicle_index = vehicle_index
+        self._now_time = now_time
+        self._sensed_information = sensed_information
+        self._sensing_frequencies = sensing_frequencies
+        self._uploading_priorities = uploading_priorities
+        self._transmission_power = transmission_power
+        self._action_time = action_time
+    
+    def __str__(self) -> str:
+        return f"vehicle_index: {self._vehicle_index}, 
+        now_time: {self._now_time}, 
+        sensed_information: {self._sensed_information}, 
+        sensing_frequencies: {self._sensing_frequencies}, 
+        uploading_priorities: {self._uploading_priorities}, 
+        transmission_power: {self._transmission_power}, 
+        action_time: {self._action_time}"
 
+    def check_action(self, nowTimeSlot: int, vehicle_list: vehicleList) -> bool:
+        """ check the action.
+        Args:
+            nowTimeSlot: the time of the action.
+        Returns:
+            True if the action is valid.
+        """
+        if self._action_time != nowTimeSlot:
+            return False
+        if self._vehicle_index >= len(vehicle_list.get_vehicle_list()):
+            return False
+        vehicle = vehicle_list.get_vehicle(self._vehicle_index)
+        if not (len(self._sensed_information) == len(self._sensing_frequencies) == len(self._uploading_priorities)):
+            return False
+        if self._transmission_power > vehicle.get_transmission_power():
+            return False
+        return True
+
+    def get_sensed_information(self) -> List[int]:
+        return self._sensed_information
+
+    def get_sensing_frequencies(self) -> List[float]:
+        return self._sensing_frequencies
+    
+    def get_uploading_priorities(self) -> List[float]:
+        return self._uploading_priorities
+
+    def get_transmission_power(self) -> float:
+        return self._transmission_power
+
+    def get_action_time(self) -> int:
+        return self._action_time
+    
+# pass
 class edge(object):
     """ the edge. """
     def __init__(
@@ -373,7 +492,14 @@ class edge(object):
         edge_index: int,
         edge_location: location,
         communication_range: float,
-        bandwidth: float) -> None:
+        small_range : float,
+        PFMs : List[PFMs],
+        
+        MAX_power : float,
+
+        Strage_capability : float,
+        GPU_memory : float,
+        GPU_cycles : float) -> None:
         """ initialize the edge.
         Args:
             edge_index: the index of edge. e.g. 0, 1, 2, ...
@@ -385,7 +511,14 @@ class edge(object):
         self._edge_index = edge_index
         self._edge_location = edge_location
         self._communication_range = communication_range
-        self._bandwidth = bandwidth
+        self._small_range = small_range
+        
+        self._PFMs = PFMs
+        self._MAX_power = MAX_power
+        self._Strage_capability = Strage_capability
+        self._GPU_memory = GPU_memory
+        self._GPU_cycles = GPU_cycles
+
 
     def get_edge_index(self) -> int:
         return int(self._edge_index)
@@ -396,5 +529,271 @@ class edge(object):
     def get_communication_range(self) -> float:
         return self._communication_range
     
-    def get_bandwidth(self) -> float:
-        return self._bandwidth
+    def get_small_range(self) -> float:
+        return self._small_range
+    
+    # def get_bandwidth(self) -> float:
+    #     return self._bandwidth
+
+    def get_PFMs(self) -> List[PFMs]:
+        return self._PFMs
+
+    def get_MAX_power(self) -> float:
+        return self._MAX_power
+    
+    def get_Strage_capability(self) -> float:
+        return self._Strage_capability
+    
+    def get_GPU_cycles(self) -> float:
+        return self._GPU_cycles
+    
+    def get_GPU_memory(self) -> float:
+        return self._GPU_memory
+
+class edgeAction(object):
+    """ the action of the edge. """
+    def __init__(
+        self, 
+        edge: edge,
+        now_time: int,
+        vehicle_pair_number: int,
+        bandwidth_allocation: np.ndarray,
+
+        PFMs_number : int,
+
+
+        action_time: int) -> None:
+        """ initialize the edge action.
+        Args:
+            edge: the edge.
+            now_time: the current time.
+            vehicle_number: the number of vehicles.
+            action_time: the time of the action.
+        """
+        self._edge_bandwidth = edge.get_bandwidth()
+        self._now_time = now_time
+        self._vehicle_pair_number = vehicle_pair_number
+        self._action_time = action_time
+        self._bandwidth_allocation = bandwidth_allocation
+
+    def __str__(self) -> str:
+        return f"edge_bandwidth: {self._edge_bandwidth}\n now_time: {self._now_time}\n vehicle_number: {self._vehicle_number}\n action_time: {self._action_time}\n bandwidth_allocation: {self._bandwidth_allocation}"
+
+    def get_bandwidth_allocation(self) -> np.ndarray:
+        return self._bandwidth_allocation
+
+    def get_the_sum_of_bandwidth_allocation(self) -> float:
+        return np.sum(self._bandwidth_allocation)
+
+    def check_action(self, nowTimeSlot: int) -> bool:
+        """ check the action.
+        Args:
+            nowTimeSlot: the time of the action.
+        Returns:
+            True if the action is valid.
+        """
+        if self._action_time != nowTimeSlot:
+            print("the action time is not correct.")
+            return False
+        if self._vehicle_number != len(self._bandwidth_allocation):
+            print("the number of vehicles is not correct.")
+            return False
+        if self._edge_bandwidth < self.get_the_sum_of_bandwidth_allocation():
+            print("the allocated bandwidth exceeds its cability.")
+            print("the allocated bandwidth:", self.get_the_sum_of_bandwidth_allocation())
+            print("the edge bandwidth:", self._edge_bandwidth)
+            return False
+        return True
+
+
+class serviceList(object):
+    """
+    This class is used to store the information list of the environment.
+    to store the whole information list, 
+    which randomly initialize the characteristics of each information,
+    including the type, data size, update interval.
+    """
+    def __init__(
+        self, 
+        number: int, 
+        data_size_low_bound: float,
+        data_size_up_bound: float,
+        data_types_number: int,
+
+        update_interval_low_bound: float,
+        update_interval_up_bound: float,
+
+        vehicle_list: vehicleList,
+        edge_node: edge,
+        
+        white_gaussian_noise: int,
+        mean_channel_fading_gain: float,
+        second_moment_channel_fading_gain: float,
+        path_loss_exponent: int,
+        seed: int, ) -> None:
+        """ initialize the information list.
+        Args:
+            number: the number of information int the list.
+            seed: the random seed.
+            data_size_low_bound: the low bound of the data size.
+            data_size_up_bound: the up bound of the data size.
+            data_types_number: the number of data types.
+            update_interval_low_bound: the low bound of the update interval.
+            update_interval_up_bound: the up bound of the update interval.
+        """
+        self._number = number
+        self._seed = seed
+        self._data_size_low_bound = data_size_low_bound
+        self._data_size_up_bound = data_size_up_bound
+        self._data_types_number = data_types_number
+        self._update_interval_low_bound = update_interval_low_bound
+        self._update_interval_up_bound = update_interval_up_bound
+
+        if self._data_types_number != self._number:
+            self._data_types_number = self._number
+        np.random.seed(self._seed)
+        self._types_of_information: List[int] = np.random.permutation(
+            list(range(self._data_types_number))
+        )
+
+        np.random.seed(self._seed)
+        self._data_size_of_information: List[float] = np.random.uniform(
+            low=self._data_size_low_bound,
+            high=self._data_size_up_bound,
+            size=self._number,
+        )
+
+        np.random.seed(self._seed)
+        self._update_interval_of_information: List[float] = np.random.uniform(
+            low=self._update_interval_low_bound, 
+            high=self._update_interval_up_bound,
+            size=self._number, 
+        )
+
+        self._information_list: List[information] = []
+        for i in range(self._number):
+            self._information_list.append(
+                information(
+                    type=self._types_of_information[i],
+                    data_size=self._data_size_of_information[i],
+                    update_interval=self._update_interval_of_information[i]
+                )
+            )
+        
+        self._mean_service_time_of_types, self._second_moment_service_time_of_types = \
+            self.compute_mean_and_second_moment_service_time_of_types(
+                vehicle_list=vehicle_list,
+                edge_node=edge_node,
+                white_gaussian_noise=white_gaussian_noise,
+                mean_channel_fading_gain=mean_channel_fading_gain,
+                second_moment_channel_fading_gain=second_moment_channel_fading_gain,
+                path_loss_exponent=path_loss_exponent
+            )
+
+    def __str__(self) -> str:
+        return f"number: {self._number}\n seed: {self._seed}\n data_size_low_bound: {self._data_size_low_bound}\n data_size_up_bound: {self._data_size_up_bound}\n data_types_number: {self._data_types_number}\n update_interval_low_bound: {self._update_interval_low_bound}\n update_interval_up_bound: {self._update_interval_up_bound}\n types_of_information: {self._types_of_information}\n data_size_of_information: {self._data_size_of_information}\n update_inter_of_information: {self._update_interval_of_information}"
+
+    def get_number(self) -> int:
+        """ get the number of information.
+        Returns:
+            the number of information.
+        """
+        return int(self._number)
+
+    def get_information_list(self) -> List[information]:
+        return self._information_list
+    
+    def get_information_type_by_index(self, index: int) -> int:
+        if index >= self._number:
+            raise ValueError("The index is out of range.")
+        return self._information_list[index].get_type()
+
+    def get_information_by_type(self, type: int) -> information:
+        """method to get the information by type"""
+        for infor in self._information_list:
+            if infor.get_type() == type:
+                return infor
+        raise ValueError("The type is not in the list.")
+
+    def get_information_siez_by_type(self, type: int) -> float:
+        """method to get the information size by type"""
+        for information in self._information_list:
+            if information.get_type() == type:
+                return information.get_data_size()
+        raise ValueError("The type is not in the list.")
+
+    def get_information_update_interval_by_type(self, type: int) -> float:
+        """method to get the information update interval by type"""
+        for information in self._information_list:
+            if information.get_type() == type:
+                return information.get_update_interval()
+        raise ValueError("The type is not in the list.")
+
+    def get_mean_service_time_of_types(self) -> np.ndarray:
+        return self._mean_service_time_of_types
+    
+    def get_second_moment_service_time_of_types(self) -> np.ndarray:
+        return self._second_moment_service_time_of_types
+
+    def get_mean_service_time_by_vehicle_and_type(self, vehicle_index: int, data_type_index: int) -> float:
+        return self._mean_service_time_of_types[vehicle_index][data_type_index]
+
+    def get_second_moment_service_time_by_vehicle_and_type(self, vehicle_index: int, data_type_index: int) -> float:
+        return self._second_moment_service_time_of_types[vehicle_index][data_type_index]
+
+    def compute_mean_and_second_moment_service_time_of_types(
+        self, 
+        vehicle_list: vehicleList,
+        edge_node: edge,
+        white_gaussian_noise,
+        mean_channel_fading_gain,
+        second_moment_channel_fading_gain,
+        path_loss_exponent) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        method to get the mean and second moment service time of 
+        each type of information at each vehile.
+        Args:
+            vehicle_list: the vehicle list.
+            edge_node: the edge node.
+            white_gaussian_noise: the additive white gaussian noise.
+            mean_channel_fading_gain: the mean channel fadding gain.
+            second_moment_channel_fading_gain: the second channel fadding gain.
+            path_loss_exponent: the path loss exponent.
+        Returns:
+            the mean and second moment service time of each type of information.
+        """
+        from Environments.utilities import generate_channel_fading_gain, compute_SNR, compute_transmission_rate
+
+        vehicle_number = vehicle_list.get_number()
+        mean_service_time_of_types = np.zeros(shape=(vehicle_number, self._data_types_number))
+        second_moment_service_time_of_types = np.zeros(shape=(vehicle_number, self._data_types_number))
+
+        for vehicle_index in range(vehicle_number):
+            vehicle = vehicle_list.get_vehicle(vehicle_index)
+            for data_type_index in range(self._data_types_number):
+                transmission_time = []
+                for location in vehicle.get_vehicle_trajectory().get_locations():
+                    distance = location.get_distance(edge_node.get_edge_location())
+                    channel_fading_gain = generate_channel_fading_gain(
+                        mean_channel_fading_gain=mean_channel_fading_gain,
+                        second_moment_channel_fading_gain=second_moment_channel_fading_gain
+                    )
+                    SNR = compute_SNR(
+                        white_gaussian_noise=white_gaussian_noise,
+                        channel_fading_gain=channel_fading_gain,
+                        distance=distance,
+                        path_loss_exponent=path_loss_exponent,
+                        transmission_power=vehicle.get_transmission_power()
+                    )
+                    bandwidth = edge_node.get_bandwidth() / vehicle_number
+                    if self.get_information_siez_by_type(data_type_index) / compute_transmission_rate(SNR, bandwidth) != np.Inf:
+                        transmission_time.append(self.get_information_siez_by_type(data_type_index) / compute_transmission_rate(SNR, bandwidth))
+                mean_service_time = np.array(transmission_time).mean()
+                second_moment_service_time = np.array(transmission_time).var()
+                mean_service_time_of_types[vehicle_index][data_type_index] = mean_service_time
+                second_moment_service_time_of_types[vehicle_index][data_type_index] = second_moment_service_time
+
+        return mean_service_time_of_types, second_moment_service_time_of_types
+
+
+
