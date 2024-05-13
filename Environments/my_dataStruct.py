@@ -145,10 +145,10 @@ class PFMs(object):
         type: int, 
         model_runtime : float,
         model_size: float,
-        
         zero_shot : float,
         one_shot : float,
-        PFMj_context_win_size : float) -> None:
+        PFMj_context_win_size : float,
+        supported_service_types: List[int]) -> None:
         """ initialize the information.
         Args:
             type: the type of the information.
@@ -160,10 +160,12 @@ class PFMs(object):
         self._zero_shot = zero_shot
         self._one_shot = one_shot
         self._PFMj_context_win_size = PFMj_context_win_size
+        self._supported_service_types = supported_service_types
 
     def __str__(self) -> str:
-        return f"type: {self._type}\n model_runtime: {self._model_runtime}\n model_size: {self._model_size} \
-        zero_shot: {self._zero_shot}\n one_shot: {self._one_shot}\n PFMj_context_win_size: {self._PFMj_context_win_size}"
+        return f"type: {self._type}\n model_runtime: {self._model_runtime}\n 
+        model_size: {self._model_size}\n  zero_shot: {self._zero_shot}\n 
+        one_shot: {self._one_shot}\n PFMj_context_win_size: {self._PFMj_context_win_size}"
 
     def get_type(self) -> int:
         return int(self._type)
@@ -182,6 +184,9 @@ class PFMs(object):
     
     def get_PFMj_context_win_size(self) -> float:
         return self._PFMj_context_win_size
+    
+    def get_supported_service_types(self) -> List[int]:
+        return self._supported_service_types
 
 # pass
 class service(object):
@@ -190,7 +195,8 @@ class service(object):
         type: int, 
         data_size: float,
         GPU_cycles : float,
-        PFMs : List[PFMs],
+        PFMs : List[int],
+
         update_interval: float) -> None:
         """ initialize the service.
         Args:
@@ -198,6 +204,7 @@ class service(object):
             data_size: the data size of the service.
             GPU_cycles: 
             PFMs:
+            update_interval
         """
         self._type = type
         self._data_size = data_size
@@ -206,8 +213,8 @@ class service(object):
         self._update_interval = update_interval
 
     def __str__(self) -> str:
-        return f"type: {self._type}\n data_size: {self._data_size}\n 
-        GPU_cycles: {self._GPU_cycle}\n PFMs: {self._PFMs}\n update_interval: {self._update_interval}"
+        return f"service_type: {self._type}\n data_size: {self._data_size}\n GPU_cycles: {self._GPU_cycle}\n
+        update_interval: {self._update_interval}" + str([str(type) for type in self._PFMs])
 
     def get_type(self) -> int:
         return int(self._type)
@@ -218,13 +225,34 @@ class service(object):
     def get_GPU_cycles(self) -> float:
         return self._GPU_cycles
     
-    def get_PFMs(self) -> List[PFMs]:
-        # 二维数组，对应关系
-        self._PFMs = self._PFMs[type]
+    def get_PFMs(self) -> List[int]:
         return self._PFMs
 
     def get_update_interval(self) -> float:
         return self._update_interval
+    
+    def can_be_handled_by_model(self, model: PFMs) -> bool:
+        # 在这里实现确定模型能否处理该服务的逻辑
+        if model._supported_service_types and self._type in model._supported_service_types:
+            return True
+        else:
+            return False
+
+
+class ServiceAllocationModule:
+    def __init__(
+        self, 
+        services: List[service], 
+        models: List[PFMs]) -> None:
+        
+        self._services = services
+        self._models = models
+
+    def allocate_services(self):
+        for service in self._services:
+            for model in self._models:
+                if service._type in model._supported_service_types:
+                    print(f"Service of type {service.type} can be handled by model {model.name}")
 
 
 class vehicle(object):
@@ -233,12 +261,9 @@ class vehicle(object):
         self, 
         vehicle_index: int,
         vehicle_trajectory: trajectory,
-
         vehicle_location : location,
-        vehicle_service : service,
-
+        vehicle_service : List[service],
         transmission_power: float,
-
         # 车辆v产生服务s，服务需要由边缘节点上的模型执行，多个模型都能执行这个服务，两者有个一对多的关系，这个关系代码实现应该在哪个模块中实现
         # seed: int: 这个参数是一个整数类型，表示随机数生成的种子值。
         # seed 参数允许我们在随机数生成器中设置一个初始值，以获得可控制的随机数序列。
@@ -256,50 +281,50 @@ class vehicle(object):
         """
         self._vehicle_index = vehicle_index
         self._vehicle_trajectory = vehicle_trajectory
-
+        self._vehicle_location = vehicle_location
+        self._vehicle_service = vehicle_service
         self._transmission_power = transmission_power
         self._seed = seed
 
-        seed._vehicle_location = vehicle_location
-        seed._vehicle_service = vehicle_service
-
-        if self._sensed_information_number > self._information_number:
-            raise ValueError("The max information number must be less than the information number.")
-
     def __str__(self) -> str:
-        return f"vehicle_index: {self._vehicle_index}\n vehicle_trajectory: {self._vehicle_trajectory}\n information_number: {self._information_number}\n sensed_information_number: {self._sensed_information_number}\n min_sensing_cost: {self._min_sensing_cost}\n max_sensing_cost: {self._max_sensing_cost}\n transmission_power: {self._transmission_power}\n seed: {self._seed}\n information_canbe_sensed: {self._information_canbe_sensed}\n sensing_cost: {self._sensing_cost}"
+        return f"vehicle_index: {self._vehicle_index}\n 
+        vehicle_location: {self._vehicle_location}\n 
+        vehicle_trajectory: {self._vehicle_trajectory}\n 
+        vehicle_service: {self._vehicle_service}\n 
+        transmission_power: {self._transmission_power}\n 
+        seed: {self._seed}\n "
 
     def get_vehicle_index(self) -> int:
         return int(self._vehicle_index)
 
-    def get_transmission_power(self) -> float:
-        return self._transmission_power
-
     def get_vehicle_location(self) -> location:
         return self._vehicle_location
     
-    def get_vehicle_service(self) -> service:
+    def get_vehicle_trajectory(self) -> trajectory:
+        return self._vehicle_trajectory
+    
+    def get_vehicle_service(self) -> List[service]:
         return self._vehicle_service
     
     def get_vehicle_location(self, nowTimeSlot: int) -> location:
         return self._vehicle_trajectory.get_location(nowTimeSlot)
 
+    def get_transmission_power(self) -> float:
+        return self._transmission_power
+    
     def get_distance_between_edge(self, nowTimeSlot: int, edge_location: location) -> float:
         return self._vehicle_trajectory.get_location(nowTimeSlot).get_distance(edge_location)
-    
-    def get_vehicle_trajectory(self) -> trajectory:
-        return self._vehicle_trajectory
+
 
 class vehicleList(object):
     """ the vehicle list. """
     def __init__(
         self, 
         number: int, 
-        
         time_slots: timeSlots,
         trajectories_file_name: str,
-
-
+        vehicle_location : location,
+        vehicle_service : List[service],
         transmission_power: float,
         # 生成多个随机数序列，您可以为每个序列指定一个种子值。
         # seeds: List[int] 表示一个整数类型的列表，其中包含了多个种子值。
@@ -317,7 +342,8 @@ class vehicleList(object):
         """
         self._number = number
         self._trajectories_file_name = trajectories_file_name
-
+        self._vehicle_location = vehicle_location
+        self._vehicle_service = vehicle_service
         self._transmission_power = transmission_power
         self._seeds = seeds
 
@@ -329,15 +355,17 @@ class vehicleList(object):
                 vehicle(
                     vehicle_index=i,
                     vehicle_trajectory=self._vehicle_trajectories[i],
-
-
-                    transmission_power=self._transmission_power,
+                    vehicle_location = self._vehicle_location[i],
+                    vehicle_service = self._vehicle_service[i],
+                    transmission_power=self._transmission_power[i],
                     seed=self._seeds[i]
                 )
             )
 
     def __str__(self) -> str:
-        return f"number: {self._number}\n information_number: {self._information_number}\n sensed_information_number: {self._sensed_information_number}\n min_sensing_cost: {self._min_sensing_cost}\n max_sensing_cost: {self._max_sensing_cost}\n transmission_power: {self._transmission_power}\n seeds: {self._seeds}\n vehicle_list: {self._vehicle_list}" + "\n" + str([str(vehicle) for vehicle in self._vehicle_list])
+        return f"number: {self._number}\n 
+        transmission_power: {self._transmission_power}\n seeds: {self._seeds}\n 
+        vehicle_list: {self._vehicle_list}" + "\n" + str([str(vehicle) for vehicle in self._vehicle_list])
 
     def get_number(self) -> int:
         return int(self._number)
@@ -410,80 +438,6 @@ class vehicleList(object):
 
         return vehicle_trajectories
 
-class vehicleAction(object):
-    """ the action of the vehicle. """
-    def __init__(
-        self, 
-        vehicle_index: int,
-        now_time: int,
-        sensed_information: Optional[List[int]] = None,
-        sensing_frequencies: Optional[List[float]] = None,
-        uploading_priorities: Optional[List[float]] = None,
-        transmission_power: Optional[float] = None, 
-        action_time: Optional[int] = None) -> None:
-        """ initialize the vehicle action.
-        Args:
-            vehicle_index: the index of vehicle. e.g. 0, 1, 2, ...
-            now_time: the current time.
-            vehicle_list: the vehicle list.
-            sensed_information: the sensed information.
-                e.g., 0 or 1, indicates whether the information is sensed or not.
-                and the type of information is rocorded in vehicle.information_canbe_sensed .
-            sensing_frequencies: the sensing frequencies.
-            uploading_priorities: the uploading priorities.
-            transmission_power: the transmission power.
-            action_time: the time of the action.
-        """
-        self._vehicle_index = vehicle_index
-        self._now_time = now_time
-        self._sensed_information = sensed_information
-        self._sensing_frequencies = sensing_frequencies
-        self._uploading_priorities = uploading_priorities
-        self._transmission_power = transmission_power
-        self._action_time = action_time
-    
-    def __str__(self) -> str:
-        return f"vehicle_index: {self._vehicle_index}, 
-        now_time: {self._now_time}, 
-        sensed_information: {self._sensed_information}, 
-        sensing_frequencies: {self._sensing_frequencies}, 
-        uploading_priorities: {self._uploading_priorities}, 
-        transmission_power: {self._transmission_power}, 
-        action_time: {self._action_time}"
-
-    def check_action(self, nowTimeSlot: int, vehicle_list: vehicleList) -> bool:
-        """ check the action.
-        Args:
-            nowTimeSlot: the time of the action.
-        Returns:
-            True if the action is valid.
-        """
-        if self._action_time != nowTimeSlot:
-            return False
-        if self._vehicle_index >= len(vehicle_list.get_vehicle_list()):
-            return False
-        vehicle = vehicle_list.get_vehicle(self._vehicle_index)
-        if not (len(self._sensed_information) == len(self._sensing_frequencies) == len(self._uploading_priorities)):
-            return False
-        if self._transmission_power > vehicle.get_transmission_power():
-            return False
-        return True
-
-    def get_sensed_information(self) -> List[int]:
-        return self._sensed_information
-
-    def get_sensing_frequencies(self) -> List[float]:
-        return self._sensing_frequencies
-    
-    def get_uploading_priorities(self) -> List[float]:
-        return self._uploading_priorities
-
-    def get_transmission_power(self) -> float:
-        return self._transmission_power
-
-    def get_action_time(self) -> int:
-        return self._action_time
-    
 # pass
 class edge(object):
     """ the edge. """
@@ -491,12 +445,11 @@ class edge(object):
         self, 
         edge_index: int,
         edge_location: location,
-        communication_range: float,
         small_range : float,
-        PFMs : List[PFMs],
-        
-        MAX_power : float,
+        communication_range: float,
 
+        PFMs : List[int],
+        MAX_power : float,
         Strage_capability : float,
         GPU_memory : float,
         GPU_cycles : float) -> None:
@@ -519,7 +472,6 @@ class edge(object):
         self._GPU_memory = GPU_memory
         self._GPU_cycles = GPU_cycles
 
-
     def get_edge_index(self) -> int:
         return int(self._edge_index)
 
@@ -531,12 +483,12 @@ class edge(object):
     
     def get_small_range(self) -> float:
         return self._small_range
-    
-    # def get_bandwidth(self) -> float:
-    #     return self._bandwidth
 
-    def get_PFMs(self) -> List[PFMs]:
+    def get_PFMs(self) -> List[int]:
         return self._PFMs
+
+    def get_GPU_cycles(self) -> float:
+        return self._GPU_cycles
 
     def get_MAX_power(self) -> float:
         return self._MAX_power
@@ -544,11 +496,9 @@ class edge(object):
     def get_Strage_capability(self) -> float:
         return self._Strage_capability
     
-    def get_GPU_cycles(self) -> float:
-        return self._GPU_cycles
-    
     def get_GPU_memory(self) -> float:
         return self._GPU_memory
+
 
 class edgeAction(object):
     """ the action of the edge. """
@@ -575,6 +525,20 @@ class edgeAction(object):
         self._vehicle_pair_number = vehicle_pair_number
         self._action_time = action_time
         self._bandwidth_allocation = bandwidth_allocation
+        
+
+        for i in range(self._vehicle_pair_number):
+            self._vehicle_list.append(
+                vehicle(
+                    vehicle_index=i,
+                    vehicle_trajectory=self._vehicle_trajectories[i],
+                    vehicle_location = self._vehicle_location[i],
+                    vehicle_service = self._vehicle_service[i],
+                    transmission_power=self._transmission_power[i],
+                    seed=self._seeds[i]
+                )
+            )
+
 
     def __str__(self) -> str:
         return f"edge_bandwidth: {self._edge_bandwidth}\n now_time: {self._now_time}\n vehicle_number: {self._vehicle_number}\n action_time: {self._action_time}\n bandwidth_allocation: {self._bandwidth_allocation}"
